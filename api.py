@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from engine import Economy
-from typing import List, Optional, Dict, Any # Import new types
+from typing import List, Dict
 
 app = FastAPI(title="Taraz API", version="0.1.0")
 
@@ -20,7 +20,6 @@ game_instance = Economy()
 class PolicyInput(BaseModel):
     interest_rate: float
 
-# New Model for Event
 class EventModel(BaseModel):
     title: str
     desc: str
@@ -33,7 +32,11 @@ class GameState(BaseModel):
     gdp_growth: float
     unemployment: float
     effective_rate: float
-    events: List[EventModel] = [] # Default empty list
+    events: List[EventModel] = []
+    
+    # New Fields
+    political_tension: float = 0.0
+    gov_message: str = ""
 
 @app.get("/")
 def read_root():
@@ -47,7 +50,9 @@ def get_state():
         "gdp_growth": round(game_instance.gdp_growth, 2),
         "unemployment": round(game_instance.unemployment, 2),
         "effective_rate": round(game_instance._calculate_effective_rate(), 2),
-        "events": game_instance.active_events
+        "events": game_instance.active_events,
+        "political_tension": round(game_instance.political_tension, 1),
+        "gov_message": game_instance.gov_message
     }
 
 @app.post("/next_turn", response_model=GameState)

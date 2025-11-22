@@ -59,11 +59,18 @@ function App() {
     }
   };
 
+  const getTensionColor = (val) => {
+    if (val < 30) return '#51cf66';
+    if (val < 70) return '#fcc419';
+    return '#ff6b6b';
+  };
+
   if (!gameState) return <div className="loading">در حال اتصال به سامانه تراز...</div>;
 
   return (
     <div className="app-wrapper" dir="rtl">
       <div className="container">
+
         <header>
           <h1>شبیه‌ساز اقتصاد کلان: تراز</h1>
           <div className="status-badge">
@@ -72,6 +79,25 @@ function App() {
         </header>
 
         {error && <div className="error-box">{error}</div>}
+
+        <div className="tension-container">
+          <div className="tension-header">
+            <span>تنش سیاسی با دولت</span>
+            <strong>{gameState.political_tension}%</strong>
+          </div>
+          <div className="progress-bar-bg">
+            <div 
+              className="progress-bar-fill"
+              style={{
+                width: `${gameState.political_tension}%`,
+                backgroundColor: getTensionColor(gameState.political_tension)
+              }}
+            ></div>
+          </div>
+          <div className="gov-message">
+            💬 {gameState.gov_message}
+          </div>
+        </div>
 
         {eventLog.length > 0 && (
           <div className="news-feed">
@@ -100,17 +126,14 @@ function App() {
             <h3>نرخ تورم</h3>
             <div className="value red">{gameState.inflation}%</div>
           </div>
-
           <div className="card">
             <h3>رشد تولید (GDP)</h3>
             <div className="value green">{gameState.gdp_growth}%</div>
           </div>
-
           <div className="card">
             <h3>نرخ بیکاری</h3>
             <div className="value orange">{gameState.unemployment}%</div>
           </div>
-
           <div className="card info">
             <h3>نرخ بهره بازار (مؤثر)</h3>
             <div className="value small">{gameState.effective_rate}%</div>
@@ -138,10 +161,10 @@ function App() {
           <label>
             تنظیم نرخ بهره سیاستی: <strong>{interestRate}%</strong>
           </label>
-          <input 
-            type="range" 
-            min="-5" 
-            max="50" 
+          <input
+            type="range"
+            min="-5"
+            max="50"
             step="0.5"
             value={interestRate}
             onChange={(e) => setInterestRate(e.target.value)}
