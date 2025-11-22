@@ -8,7 +8,7 @@ function App() {
   
   // Inputs
   const [interestRate, setInterestRate] = useState(15.0);
-  const [moneyPrinter, setMoneyPrinter] = useState(0.0); // New: -20 to +20
+  const [moneyPrinter, setMoneyPrinter] = useState(0.0); 
   
   // UX States
   const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ function App() {
   
   // Data for Visualization
   const [history, setHistory] = useState([]);
-  const [eventLog, setEventLog] = useState([]); // Persistent News Feed
+  const [eventLog, setEventLog] = useState([]); 
 
   const API_URL = "http://127.0.0.1:8000";
 
@@ -34,17 +34,15 @@ function App() {
       
       setGameState(data);
       setInterestRate(data.effective_rate);
+      setMoneyPrinter(data.money_supply_index !== 100 ? 0.0 : 0.0); // Reset slider visual
       
-      // Initialize History
       setHistory([data]);
-      
-      // Initialize Events if any
       if (data.events && data.events.length > 0) {
           addEventsToLog(data.events, data.turn);
       }
       
     } catch (err) {
-      setError("عدم اتصال به سرور بازی. آیا فایل api.py اجرا شده است؟");
+      setError("عدم اتصال به سرور. آیا فایل api.py اجرا شده است؟");
       console.error(err);
     }
   };
@@ -67,10 +65,7 @@ function App() {
       const newData = await response.json();
       setGameState(newData);
       
-      // Update Charts
       setHistory(prev => [...prev, newData]);
-      
-      // Update News Feed
       addEventsToLog(newData.events, newData.turn);
 
     } catch (err) {
@@ -81,12 +76,30 @@ function App() {
     }
   };
 
+  const handleReset = async () => {
+      // If game is NOT over, ask for confirmation. If over, just reset.
+      if (!gameState?.is_game_over && !confirm("آیا مطمئن هستید؟ بازی کاملاً ریست شده و نوع دولت تغییر می‌کند.")) return;
+      
+      setLoading(true);
+      try {
+          await fetch(`${API_URL}/reset`, { method: "POST" });
+          setHistory([]);
+          setEventLog([]);
+          setMoneyPrinter(0.0);
+          await fetchInitialState();
+      } catch(err) {
+          setError("خطا در ریست بازی");
+      } finally {
+          setLoading(false);
+      }
+  };
+
   // --- Helpers ---
 
   const addEventsToLog = (newEvents, turn) => {
       if (!newEvents || newEvents.length === 0) return;
       const taggedEvents = newEvents.map(evt => ({ ...evt, turn }));
-      setEventLog(prevLog => [...taggedEvents, ...prevLog]); // Newest first
+      setEventLog(prevLog => [...taggedEvents, ...prevLog]); 
   };
 
   const formatCurrency = (val) => {
@@ -94,28 +107,43 @@ function App() {
   };
 
   const getTensionColor = (val) => {
-    if (val < 30) return '#51cf66'; // Green
-    if (val < 70) return '#fcc419'; // Yellow
-    return '#ff6b6b'; // Red
+    if (val < 30) return '#51cf66'; 
+    if (val < 70) return '#fcc419'; 
+    return '#ff6b6b'; 
   };
 
   // --- Render ---
 
   if (!gameState) return <div className="loading">در حال اتصال به سامانه تراز...</div>;
+  
+  const isGameOver = gameState.is_game_over;
 
   return (
     <div className="app-wrapper" dir="rtl">
-      <div className="container">
+      {/* Container blurs when game is over */}
+      <div className={`container ${isGameOver ? 'blur-background' : ''}`}>
         <header>
-          <h1>شبیه‌ساز اقتصاد کلان: تراز</h1>
-          <div className="status-badge">
-             ماه جاری: <strong>{gameState.turn}</strong>
+          <div className="header-info">
+            <h1>شبیه‌ساز اقتصاد کلان: تراز</h1>
+            <div className="gov-badge">
+                🏛 {gameState.gov_type}
+                <div className="tooltip">{gameState.gov_desc}</div>
+            </div>
+          </div>
+          
+          <div className="header-actions">
+              <div className="status-badge">
+                 ماه: <strong>{gameState.turn}</strong> / 48
+              </div>
+              <button onClick={handleReset} className="reset-btn" title="بازی جدید">
+                 ⟳
+              </button>
           </div>
         </header>
 
         {error && <div className="error-box">{error}</div>}
 
-        {/* 1. Political Tension Section */}
+        {/* 1. Tension Bar */}
         <div className="tension-container">
             <div className="tension-header">
                 <span>تنش سیاسی با دولت</span>
@@ -160,9 +188,8 @@ function App() {
           </div>
         )}
 
-        {/* 3. Main Dashboard */}
+        {/* 3. Dashboard */}
         <div className="dashboard-grid">
-          {/* FX Card */}
           <div className="card">
             <h3>نرخ ارز (تومان)</h3>
             <div className="value gold">{formatCurrency(gameState.exchange_rate)}</div>
@@ -212,7 +239,6 @@ function App() {
 
         {/* 5. Controls */}
         <div className="controls-area">
-          {/* Slider 1: Interest Rate */}
           <div className="control-group">
               <label>
                 تنظیم نرخ بهره سیاستی: <strong>{interestRate}%</strong>
@@ -229,7 +255,6 @@ function App() {
               </div>
           </div>
 
-          {/* Slider 2: Money Printer */}
           <div className="control-group printer-group">
               <label>
                 مدیریت نقدینگی (چاپ پول / فروش اوراق): 
@@ -239,10 +264,7 @@ function App() {
               </label>
               
               <input 
-                type="range" 
-                min="-20" 
-                max="20" 
-                step="1"
+                type="range" min="-20" max="20" step="1"
                 value={moneyPrinter}
                 onChange={(e) => setMoneyPrinter(e.target.value)}
                 className="slider printer-slider"
@@ -263,6 +285,29 @@ function App() {
           </button>
         </div>
       </div>
+
+      {/* --- Game Over Modal --- */}
+      {isGameOver && (
+        <div className="modal-overlay">
+          <div className={`modal-content ${gameState.game_over_type}`}>
+            <h2>
+                {gameState.game_over_type === 'win' ? '🏆 مأموریت انجام شد' : '💀 پایان بازی'}
+            </h2>
+            <p className="game-over-reason">{gameState.game_over_reason}</p>
+            
+            <div className="final-stats">
+                <div>تورم نهایی: {gameState.inflation}%</div>
+                <div>رشد نهایی: {gameState.gdp_growth}%</div>
+                <div>بیکاری: {gameState.unemployment}%</div>
+            </div>
+
+            <button onClick={handleReset} className="restart-btn">
+              شروع دوره جدید
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

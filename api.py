@@ -38,6 +38,13 @@ class GameState(BaseModel):
     exchange_rate: float = 50000.0
     fx_change: float = 0.0
     money_supply_index: float = 100.0
+    gov_type: str = "دولت"
+    gov_desc: str = ""
+    
+    # Game Over Fields
+    is_game_over: bool = False
+    game_over_reason: str = ""
+    game_over_type: str = "none" 
 
 @app.get("/")
 def read_root():
@@ -56,7 +63,14 @@ def get_state():
         "gov_message": game_instance.gov_message,
         "exchange_rate": round(game_instance.exchange_rate, 0),
         "fx_change": round(game_instance.fx_change_rate, 2),
-        "money_supply_index": round(game_instance.money_supply_index, 1)
+        "money_supply_index": round(game_instance.money_supply_index, 1),
+        "gov_type": game_instance.gov.name,
+        "gov_desc": game_instance.gov.profile["desc"],
+        
+        # Check manually for state display
+        "is_game_over": game_instance.political_tension >= 100 or game_instance.inflation >= 100 or game_instance.unemployment >= 30 or game_instance.turn > game_instance.MAX_TURNS,
+        "game_over_reason": "", 
+        "game_over_type": "none"
     }
 
 @app.post("/next_turn", response_model=GameState)
