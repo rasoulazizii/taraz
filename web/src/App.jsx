@@ -1,4 +1,3 @@
-// web/src/App.jsx
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './App.css';
@@ -9,8 +8,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
-  // New State for recent events notification
-  const [events, setEvents] = useState([]);
+  const [eventLog, setEventLog] = useState([]);
 
   const API_URL = "http://127.0.0.1:8000";
 
@@ -21,18 +19,23 @@ function App() {
   const fetchInitialState = async () => {
     try {
       const response = await fetch(`${API_URL}/state`);
-      if (!response.ok) throw new Error("خطا در دریافت اطلاعات");
+      if (!response.ok) throw new Error();
       const data = await response.json();
-      
       setGameState(data);
       setInterestRate(data.effective_rate);
       setHistory([data]);
-      setEvents(data.events || []);
-      
+      if (data.events && data.events.length > 0) {
+        addEventsToLog(data.events, data.turn);
+      }
     } catch (err) {
       setError("عدم اتصال به سرور بازی.");
-      console.error(err);
     }
+  };
+
+  const addEventsToLog = (newEvents, turn) => {
+    if (!newEvents || newEvents.length === 0) return;
+    const tagged = newEvents.map(evt => ({ ...evt, turn }));
+    setEventLog(prev => [...tagged, ...prev]);
   };
 
   const handleNextTurn = async () => {
@@ -42,19 +45,15 @@ function App() {
       const response = await fetch(`${API_URL}/next_turn`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ interest_rate: parseFloat(interestRate) }),
+        body: JSON.stringify({ interest_rate: parseFloat(interestRate) })
       });
-
-      if (!response.ok) throw new Error("خطا در پردازش نوبت");
-      
+      if (!response.ok) throw new Error();
       const newData = await response.json();
       setGameState(newData);
       setHistory(prev => [...prev, newData]);
-      setEvents(newData.events || []); // Update events list
-
+      addEventsToLog(newData.events, newData.turn);
     } catch (err) {
       setError("خطا در اعمال سیاست پولی.");
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -68,25 +67,31 @@ function App() {
         <header>
           <h1>شبیه‌ساز اقتصاد کلان: تراز</h1>
           <div className="status-badge">
-             ماه جاری: <strong>{gameState.turn}</strong>
+            ماه جاری: <strong>{gameState.turn}</strong>
           </div>
         </header>
 
         {error && <div className="error-box">{error}</div>}
 
-        {/* Event Notifications Area */}
-        {events.length > 0 && (
-          <div className="events-container">
-            {events.map((evt, index) => (
-              <div key={index} className={`event-card ${evt.type}`}>
-                <h4>⚠️ {evt.title}</h4>
-                <p>{evt.desc}</p>
-                <div className="event-impact">
-                    {evt.impact.inflation && <span>تورم: {evt.impact.inflation > 0 ? '+' : ''}{evt.impact.inflation}% </span>}
-                    {evt.impact.gdp && <span>تولید: {evt.impact.gdp > 0 ? '+' : ''}{evt.impact.gdp}% </span>}
+        {eventLog.length > 0 && (
+          <div className="news-feed">
+            <h3>🗞 اخبار و رویدادها</h3>
+            <div className="news-list">
+              {eventLog.map((evt, index) => (
+                <div key={index} className={`news-item ${evt.type}`}>
+                  <div className="news-turn">ماه {evt.turn}</div>
+                  <div className="news-content">
+                    <h4>{evt.title}</h4>
+                    <p>{evt.desc}</p>
+                    <div className="news-impact">
+                      {evt.impact.inflation && <span>تورم: {evt.impact.inflation > 0 ? '+' : ''}{evt.impact.inflation}% </span>}
+                      {evt.impact.gdp && <span>تولید: {evt.impact.gdp > 0 ? '+' : ''}{evt.impact.gdp}% </span>}
+                      {evt.impact.unemployment && <span>بیکاری: {evt.impact.unemployment > 0 ? '+' : ''}{evt.impact.unemployment}% </span>}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
@@ -95,12 +100,12 @@ function App() {
             <h3>نرخ تورم</h3>
             <div className="value red">{gameState.inflation}%</div>
           </div>
-          
+
           <div className="card">
             <h3>رشد تولید (GDP)</h3>
             <div className="value green">{gameState.gdp_growth}%</div>
           </div>
-          
+
           <div className="card">
             <h3>نرخ بیکاری</h3>
             <div className="value orange">{gameState.unemployment}%</div>
@@ -113,7 +118,7 @@ function App() {
           </div>
         </div>
 
-        <div className="chart-container" dir="ltr"> 
+        <div className="chart-container" dir="ltr">
           <h3>روند شاخص‌های کلان</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={history}>
@@ -150,6 +155,7 @@ function App() {
             {loading ? "در حال محاسبه..." : "اعمال سیاست و رفتن به ماه بعد"}
           </button>
         </div>
+
       </div>
     </div>
   );

@@ -43,14 +43,12 @@ class Economy:
         return (rates[-1] * 0.10) + (rates[-2] * 0.30) + (rates[-3] * 0.60)
 
     def _process_random_events(self):
-        """
-        Roll dice to see if a random event occurs.
-        Returns a list of event dictionaries.
-        """
         triggered = []
         
-        # 1. Oil Shock (Negative Supply Shock) - 5% Chance
-        if random.random() < 0.05:
+        # احتمال را موقتا از 0.05 به 0.15 (15 درصد) افزایش می‌دهیم برای تست
+        # 1. Oil Shock
+        if random.random() < 0.15:
+            print(f"--- DEBUG: Oil Shock Triggered at Turn {self.turn} ---") # <--- خط جدید
             event = {
                 "title": "شوک نفتی",
                 "desc": "قیمت جهانی نفت افزایش یافت. هزینه تولید بالا رفت.",
@@ -58,12 +56,12 @@ class Economy:
                 "impact": {"inflation": 4.0, "gdp": -2.0}
             }
             triggered.append(event)
-            # Apply Impact Immediately
             self.inflation += 4.0
             self.gdp_growth -= 2.0
 
-        # 2. Tech Boom (Positive Supply Shock) - 5% Chance
-        elif random.random() < 0.05:
+        # 2. Tech Boom
+        elif random.random() < 0.15:
+            print(f"--- DEBUG: Tech Boom Triggered at Turn {self.turn} ---") # <--- خط جدید
             event = {
                 "title": "جهش فناوری",
                 "desc": "استارتاپ‌های جدید بهره‌وری را افزایش دادند.",
@@ -74,9 +72,9 @@ class Economy:
             self.inflation -= 1.0
             self.gdp_growth += 3.0
 
-        # 3. Labor Strike (Conditional Trigger)
-        # If Inflation > 25%, 20% chance of strike
-        if self.inflation > 25.0 and random.random() < 0.20:
+        # 3. Labor Strike (Conditional)
+        if self.inflation > 20.0 and random.random() < 0.30:
+             print(f"--- DEBUG: Strike Triggered at Turn {self.turn} ---") # <--- خط جدید
              event = {
                 "title": "اعتصاب کارگران",
                 "desc": "کارگران به دلیل تورم بالا دست از کار کشیدند.",
