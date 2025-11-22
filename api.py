@@ -1,4 +1,3 @@
-# api.py
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -19,6 +18,7 @@ game_instance = Economy()
 
 class PolicyInput(BaseModel):
     interest_rate: float
+    money_printer: float = 0.0
 
 class EventModel(BaseModel):
     title: str
@@ -33,10 +33,11 @@ class GameState(BaseModel):
     unemployment: float
     effective_rate: float
     events: List[EventModel] = []
-    
-    # New Fields
     political_tension: float = 0.0
     gov_message: str = ""
+    exchange_rate: float = 50000.0
+    fx_change: float = 0.0
+    money_supply_index: float = 100.0
 
 @app.get("/")
 def read_root():
@@ -52,14 +53,21 @@ def get_state():
         "effective_rate": round(game_instance._calculate_effective_rate(), 2),
         "events": game_instance.active_events,
         "political_tension": round(game_instance.political_tension, 1),
-        "gov_message": game_instance.gov_message
+        "gov_message": game_instance.gov_message,
+        "exchange_rate": round(game_instance.exchange_rate, 0),
+        "fx_change": round(game_instance.fx_change_rate, 2),
+        "money_supply_index": round(game_instance.money_supply_index, 1)
     }
 
 @app.post("/next_turn", response_model=GameState)
 def next_turn(policy: PolicyInput):
     if not (-10.0 <= policy.interest_rate <= 100.0):
         raise HTTPException(status_code=400, detail="Interest rate must be between -10 and 100")
-    new_state = game_instance.next_turn(policy.interest_rate)
+    
+    if not (-50.0 <= policy.money_printer <= 50.0):
+        raise HTTPException(status_code=400, detail="Money printer out of range")
+
+    new_state = game_instance.next_turn(policy.interest_rate, policy.money_printer)
     return new_state
 
 @app.post("/reset")
