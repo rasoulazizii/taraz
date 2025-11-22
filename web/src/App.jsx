@@ -6,19 +6,15 @@ function App() {
   const [gameState, setGameState] = useState(null);
   const [interestRate, setInterestRate] = useState(15.0);
   const [moneyPrinter, setMoneyPrinter] = useState(0.0); 
-  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
   const [history, setHistory] = useState([]);
   const [forecast, setForecast] = useState([]); 
   const [eventLog, setEventLog] = useState([]); 
 
   const API_URL = "http://127.0.0.1:8000";
 
-  useEffect(() => {
-    fetchInitialState();
-  }, []);
+  useEffect(() => { fetchInitialState(); }, []);
 
   useEffect(() => {
     if (!gameState || gameState.is_game_over) return;
@@ -29,17 +25,14 @@ function App() {
   const fetchInitialState = async () => {
     try {
       const response = await fetch(`${API_URL}/state`);
-      if (!response.ok) throw new Error("خطا در دریافت اطلاعات");
+      if (!response.ok) throw new Error("Failed to fetch");
       const data = await response.json();
       setGameState(data);
       setInterestRate(data.effective_rate);
       setMoneyPrinter(0.0); 
       setHistory([data]);
       if (data.events && data.events.length > 0) addEventsToLog(data.events, data.turn);
-    } catch (err) {
-      setError("عدم اتصال به سرور.");
-      console.error(err);
-    }
+    } catch (err) { setError("اتصال برقرار نشد"); }
   };
 
   const fetchForecast = async () => {
@@ -65,7 +58,7 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ interest_rate: parseFloat(interestRate), money_printer: parseFloat(moneyPrinter) }),
       });
-      if (!response.ok) throw new Error("خطا در پردازش");
+      if (!response.ok) throw new Error("Error");
       const newData = await response.json();
       setGameState(newData);
       setHistory(prev => [...prev, newData]);
@@ -76,13 +69,13 @@ function App() {
   };
 
   const handleReset = async () => {
-      if(!gameState.is_game_over && !confirm("آیا مطمئن هستید؟")) return;
+      if(!gameState.is_game_over && !confirm("ریست شود؟")) return;
       setLoading(true);
       try {
           await fetch(`${API_URL}/reset`, { method: "POST" });
           setHistory([]); setEventLog([]); setMoneyPrinter(0.0); setForecast([]);
           await fetchInitialState();
-      } catch(err) { setError("خطا در ریست"); } 
+      } catch(err) { setError("Error"); } 
       finally { setLoading(false); }
   };
 
@@ -113,10 +106,7 @@ function App() {
         <header>
           <div className="header-info">
             <h1>شبیه‌ساز اقتصاد کلان: تراز</h1>
-            <div className="gov-badge">
-                🏛 {gameState.gov_type}
-                <div className="tooltip">{gameState.gov_desc}</div>
-            </div>
+            <div className="gov-badge">🏛 {gameState.gov_type}<div className="tooltip">{gameState.gov_desc}</div></div>
           </div>
           <div className="header-actions">
               <div className="status-badge">ماه: <strong>{gameState.turn}</strong></div>
@@ -127,27 +117,16 @@ function App() {
         {error && <div className="error-box">{error}</div>}
 
         <div className="tension-container">
-            <div className="tension-header">
-                <span>تنش سیاسی</span>
-                <strong style={{color: getTensionColor(gameState.political_tension)}}>{gameState.political_tension}%</strong>
-            </div>
-            <div className="progress-bar-bg">
-                <div className="progress-bar-fill" style={{ width: `${gameState.political_tension}%`, backgroundColor: getTensionColor(gameState.political_tension) }}></div>
-            </div>
+            <div className="tension-header"><span>تنش سیاسی</span><strong style={{color: getTensionColor(gameState.political_tension)}}>{gameState.political_tension}%</strong></div>
+            <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${gameState.political_tension}%`, backgroundColor: getTensionColor(gameState.political_tension) }}></div></div>
             <div className="gov-message">💬 {gameState.gov_message}</div>
         </div>
 
-        {/* --- Advisors Section (New) --- */}
         <div className="advisors-grid">
             {gameState.advisors && gameState.advisors.map((adv, idx) => (
                 <div key={idx} className={`advisor-card ${adv.type}`}>
-                    <div className="advisor-icon">
-                        {adv.type === 'hawk' ? '🦅' : adv.type === 'dove' ? '🕊️' : '🤖'}
-                    </div>
-                    <div className="advisor-content">
-                        <h5>{adv.name}</h5>
-                        <p>"{adv.msg}"</p>
-                    </div>
+                    <div className="advisor-icon">{adv.type === 'hawk' ? '🦅' : adv.type === 'dove' ? '🕊️' : '🤖'}</div>
+                    <div className="advisor-content"><h5>{adv.name}</h5><p>"{adv.msg}"</p></div>
                 </div>
             ))}
         </div>
@@ -178,7 +157,7 @@ function App() {
           <div className="card"><h3>تورم</h3><div className="value red">{gameState.inflation}%</div></div>
           <div className="card"><h3>رشد GDP</h3><div className="value green">{gameState.gdp_growth}%</div></div>
           <div className="card"><h3>بیکاری</h3><div className="value orange">{gameState.unemployment}%</div></div>
-          <div className="card info"><h3>نرخ بازار</h3><div className="value small">{gameState.effective_rate}%</div><span className="hint">مؤثر</span></div>
+          <div className="card info"><h3>نرخ بهره بازار</h3><div className="value small">{gameState.effective_rate}%</div><span className="hint">مؤثر</span></div>
         </div>
 
         <div className="chart-container" dir="ltr"> 
@@ -191,7 +170,7 @@ function App() {
               <Tooltip contentStyle={{ backgroundColor: '#333', border: '1px solid #555' }} />
               <Legend />
               <Line type="monotone" dataKey="inflation" name="تورم" stroke="#ff6b6b" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="gdp_growth" name="رشد GDP" stroke="#51cf66" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="gdp_growth" name="رشد" stroke="#51cf66" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="unemployment" name="بیکاری" stroke="#fcc419" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="inflation_proj" name="پیش‌بینی تورم" stroke="#ff6b6b" strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={false} strokeOpacity={0.6} />
               <Line type="monotone" dataKey="gdp_proj" name="پیش‌بینی رشد" stroke="#51cf66" strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={false} strokeOpacity={0.6} />
@@ -218,12 +197,9 @@ function App() {
       {isGameOver && (
         <div className="modal-overlay">
           <div className={`modal-content ${gameState.game_over_type}`}>
-            <h2>{gameState.game_over_type === 'win' ? '🏆 پیروزی' : '💀 شکست'}</h2>
+            <h2>{gameState.game_over_type === 'win' ? '🏆 پایان دوره' : '💀 پایان بازی'}</h2>
             <p className="game-over-reason">{gameState.game_over_reason}</p>
-            <div className="final-stats">
-                <div>تورم: {gameState.inflation}%</div>
-                <div>رشد: {gameState.gdp_growth}%</div>
-            </div>
+            <div className="final-stats"><div>تورم: {gameState.inflation}%</div><div>رشد: {gameState.gdp_growth}%</div></div>
             <button onClick={handleReset} className="restart-btn">شروع مجدد</button>
           </div>
         </div>

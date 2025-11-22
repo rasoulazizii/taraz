@@ -75,6 +75,13 @@ class Economy:
         self.gov_message = "دولت وضعیت را رصد می‌کند."
         
         self.gov = Government()
+        
+        # --- FIX: Persist Game Over State ---
+        self.game_over_status = {
+            "is_game_over": False,
+            "reason": "",
+            "type": "none"
+        }
 
     def _calculate_effective_rate(self):
         rates = self.policy_history[-3:]
@@ -123,31 +130,25 @@ class Economy:
         if self.political_tension > 85.0:
             self.gov_message = "‼️ اولتیماتوم: خطر برکناری!"
 
-    # --- New: Advisor Logic ---
     def _get_advisor_report(self, policy_rate):
         advisors = []
-        
-        # 1. The Hawk (Anti-Inflation)
         hawk_msg = "وضعیت مطلوب است."
-        if self.inflation > 5.0: hawk_msg = "تورم بالاست! باید نرخ بهره را افزایش دهید."
-        if self.inflation > 15.0: hawk_msg = "فاجعه تورمی! فوراً سیاست انقباضی شدید اعمال کنید."
+        if self.inflation > 5.0: hawk_msg = "تورم بالاست! نرخ بهره را افزایش دهید."
+        if self.inflation > 15.0: hawk_msg = "فاجعه تورمی! سیاست انقباضی شدید لازم است."
         if policy_rate < self.inflation: hawk_msg += " نرخ بهره واقعی منفی است!"
         advisors.append({"name": "شاهین (ضد تورم)", "msg": hawk_msg, "type": "hawk"})
 
-        # 2. The Dove (Pro-Growth)
         dove_msg = "بازار کار آرام است."
         if self.unemployment > 8.0: dove_msg = "مردم بیکارند! کمی پول تزریق کنید."
-        if self.unemployment > 15.0: dove_msg = "بحران بیکاری! نرخ بهره را کاهش دهید و اوراق بخرید."
+        if self.unemployment > 15.0: dove_msg = "بحران بیکاری! نرخ بهره را کاهش دهید."
         if self.gdp_growth < 0: dove_msg += " در رکود هستیم!"
         advisors.append({"name": "کبوتر (حامی رشد)", "msg": dove_msg, "type": "dove"})
 
-        # 3. The Technocrat (Stability)
-        tech_msg = "شاخص‌ها در تعادل نسبی هستند."
+        tech_msg = "شاخص‌ها متعادلند."
         if abs(self.fx_change_rate) > 3.0: tech_msg = "نوسان ارزی شدید است. ثبات را اولویت دهید."
-        if self.political_tension > 60.0: tech_msg = "ریسک سیاسی بالاست. مراقب واکنش دولت باشید."
-        if self.money_supply_index > 120 or self.money_supply_index < 80: tech_msg = "حجم نقدینگی از کنترل خارج شده."
-        advisors.append({"name": "تکنوکرات (کارشناس)", "msg": tech_msg, "type": "techno"})
-        
+        if self.political_tension > 60.0: tech_msg = "ریسک سیاسی بالاست. مراقب دولت باشید."
+        if self.money_supply_index > 120: tech_msg = "حجم نقدینگی خطرناک است."
+        advisors.append({"name": "تکنوکرات", "msg": tech_msg, "type": "techno"})
         return advisors
 
     def next_turn(self, policy_interest_rate: float, money_printer: float = 0.0, is_simulation: bool = False):
@@ -157,7 +158,6 @@ class Economy:
         effective_rate = self._calculate_effective_rate()
         self.money_supply_index += money_printer
         
-        # FX Logic
         rate_differential = effective_rate - self.GLOBAL_INTEREST_RATE
         natural_depreciation = (self.inflation - 2.0) * 0.05
         capital_flow_effect = rate_differential * self.SENSITIVITY_FX
@@ -166,7 +166,6 @@ class Economy:
         self.exchange_rate = self.exchange_rate * (1 + (self.fx_change_rate / 100.0))
         self.exchange_rate = max(1000.0, self.exchange_rate)
 
-        # Core Physics
         real_rate_gap = effective_rate - self.inflation
         gov_inflation = self.gov.profile["inflation_bias"]
         inflation_delta = -(real_rate_gap * self.SENSITIVITY_INFLATION)
@@ -187,7 +186,6 @@ class Economy:
         unemployment_gravity = (self.TARGET_UNEMPLOYMENT - self.unemployment) * self.GRAVITY_UNEMPLOYMENT
         self.unemployment += (unemployment_delta + unemployment_gravity)
 
-        # Events & Politics
         if not is_simulation:
             self.active_events = self._process_random_events()
             self._update_political_tension(policy_interest_rate)
@@ -195,24 +193,22 @@ class Economy:
             self.active_events = []
             self._update_political_tension(policy_interest_rate)
 
-        # Clamping
         self.inflation = max(self.MIN_INFLATION, min(self.MAX_INFLATION, self.inflation))
         self.unemployment = max(self.MIN_UNEMPLOYMENT, min(self.MAX_UNEMPLOYMENT, self.unemployment))
         self.gdp_growth = max(self.MIN_GDP, min(self.MAX_GDP, self.gdp_growth))
         self.turn += 1
         
-        # Game Over Logic
-        game_over, game_over_reason, game_over_type = False, "", "none"
-        if self.political_tension >= 100.0:
-            game_over, game_over_type, game_over_reason = True, "lose_pol", f"شما برکنار شدید! {self.gov.name} تحمل سیاست‌های شما را نداشت."
-        elif self.inflation >= 100.0:
-            game_over, game_over_type, game_over_reason = True, "lose_eco", "فروپاشی اقتصادی! ابرتورم پول ملی را نابود کرد."
-        elif self.unemployment >= 30.0:
-            game_over, game_over_type, game_over_reason = True, "lose_eco", "شورش گرسنگان! بیکاری گسترده باعث سقوط نظم اجتماعی شد."
-        elif self.turn > self.MAX_TURNS:
-            game_over, game_over_type, game_over_reason = True, "win", "تبریک! دوره ریاست ۴ ساله شما با موفقیت به پایان رسید."
+        # --- FIX: Persistent Game Over Logic ---
+        if not self.game_over_status["is_game_over"]: # Only check if not already over
+            if self.political_tension >= 100.0:
+                self.game_over_status = {"is_game_over": True, "type": "lose_pol", "reason": f"شما برکنار شدید! {self.gov.name} دیگر تحمل سیاست‌های شما را نداشت."}
+            elif self.inflation >= 100.0:
+                self.game_over_status = {"is_game_over": True, "type": "lose_eco", "reason": "فروپاشی اقتصادی! ابرتورم پول ملی را نابود کرد."}
+            elif self.unemployment >= 30.0:
+                self.game_over_status = {"is_game_over": True, "type": "lose_eco", "reason": "شورش گرسنگان! بیکاری گسترده باعث سقوط نظم اجتماعی شد."}
+            elif self.turn > self.MAX_TURNS:
+                self.game_over_status = {"is_game_over": True, "type": "win", "reason": "تبریک! دوره ریاست ۴ ساله شما با موفقیت به پایان رسید."}
 
-        # Generate Advisor Report
         advisors = self._get_advisor_report(policy_interest_rate)
 
         return {
@@ -229,10 +225,10 @@ class Economy:
             "money_supply_index": round(self.money_supply_index, 1),
             "gov_type": self.gov.name,
             "gov_desc": self.gov.profile["desc"],
-            "is_game_over": game_over,
-            "game_over_reason": game_over_reason,
-            "game_over_type": game_over_type,
-            # New Output
+            # Return persistent status
+            "is_game_over": self.game_over_status["is_game_over"],
+            "game_over_reason": self.game_over_status["reason"],
+            "game_over_type": self.game_over_status["type"],
             "advisors": advisors
         }
 
@@ -257,6 +253,7 @@ class Economy:
         sim_economy.turn = self.turn
         sim_economy.policy_history = self.policy_history[:]
         sim_economy.political_tension = self.political_tension
+        # IMPORTANT: Clone the current government type correctly
         sim_economy.gov = Government(self.gov.type_key)
         
         forecast_data = []

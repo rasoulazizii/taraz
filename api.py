@@ -48,7 +48,6 @@ class GameState(BaseModel):
     is_game_over: bool = False
     game_over_reason: str = ""
     game_over_type: str = "none" 
-    # New
     advisors: List[AdvisorModel] = []
 
 class ForecastPoint(BaseModel):
@@ -63,8 +62,10 @@ def read_root():
 
 @app.get("/state", response_model=GameState)
 def get_state():
-    # We need to generate advisor report for current state if not turn processing
     advisors = game_instance._get_advisor_report(game_instance.policy_history[-1])
+    
+    # --- FIX: Use persisted game over status ---
+    go_status = game_instance.game_over_status
     
     return {
         "turn": game_instance.turn,
@@ -80,9 +81,12 @@ def get_state():
         "money_supply_index": round(game_instance.money_supply_index, 1),
         "gov_type": game_instance.gov.name,
         "gov_desc": game_instance.gov.profile["desc"],
-        "is_game_over": game_instance.political_tension >= 100 or game_instance.inflation >= 100 or game_instance.unemployment >= 30 or game_instance.turn > game_instance.MAX_TURNS,
-        "game_over_reason": "", 
-        "game_over_type": "none",
+        
+        # Correctly mapped fields
+        "is_game_over": go_status["is_game_over"],
+        "game_over_reason": go_status["reason"],
+        "game_over_type": go_status["type"],
+        
         "advisors": advisors
     }
 
