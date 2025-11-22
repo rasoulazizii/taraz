@@ -1,31 +1,42 @@
 # engine.py
 
 class Economy:
-    # --- Tuning Constants (Calibration) ---
-    # How much Real Rate affects Inflation (Higher = Faster drop in inflation)
-    SENSITIVITY_INFLATION = 0.5  
+    # --- Tuning Constants (Fixed Logic) ---
     
-    # How much Real Rate affects GDP (Higher = Faster recession)
-    SENSITIVITY_GDP = 0.3        
+    # 1. Targets
+    TARGET_INFLATION = 3.0
+    TARGET_GDP_GROWTH = 3.0
+    TARGET_UNEMPLOYMENT = 5.0
+
+    # 2. Sensitivities
+    SENSITIVITY_INFLATION = 0.05  
+    SENSITIVITY_GDP = 0.05       
     
-    # Okun's Coefficient: How much GDP change affects Unemployment
-    SENSITIVITY_UNEMPLOYMENT = 0.5 
+    # Increased: Recession now hurts employment more
+    SENSITIVITY_UNEMPLOYMENT = 0.25 
     
-    # Natural Limits
+    # 3. Gravity (Mean Reversion)
+    GRAVITY_GDP = 0.2          
+    GRAVITY_INFLATION = 0.02   
+    
+    # Decreased: Unemployment takes longer to heal naturally
+    GRAVITY_UNEMPLOYMENT = 0.02 
+
+    # 4. Hard Limits
     MIN_INFLATION = -5.0
-    MAX_INFLATION = 200.0  # Hyperinflation limit
-    MIN_UNEMPLOYMENT = 3.0 # Structural unemployment
-    MAX_UNEMPLOYMENT = 50.0
+    MAX_INFLATION = 100.0 
+    MIN_UNEMPLOYMENT = 2.0
+    MAX_UNEMPLOYMENT = 40.0
+    MIN_GDP = -10.0 
+    MAX_GDP = 15.0   
 
     def __init__(self):
-        # Initial State
         self.inflation = 15.0      
         self.gdp_growth = 2.0      
         self.unemployment = 10.0   
         
         self.turn = 1
         
-        # History initialization
         initial_rate = 15.0 
         self.policy_history = [initial_rate, initial_rate, initial_rate] 
         self.history = []
@@ -34,45 +45,37 @@ class Economy:
         rates = self.policy_history[-3:]
         if len(rates) < 3:
             return rates[-1]
-        # Weighted average: 10% current, 30% prev, 60% prev-prev
         return (rates[-1] * 0.10) + (rates[-2] * 0.30) + (rates[-3] * 0.60)
 
     def next_turn(self, policy_interest_rate: float):
-        # 1. Archive decision
         self.policy_history.append(policy_interest_rate)
         self._log_history(policy_interest_rate)
 
-        # 2. Calculate Forces
         effective_rate = self._calculate_effective_rate()
-        
-        # Real Rate Gap: (Interest - Inflation)
-        # Positive Gap = Contractionary (Cools economy)
-        # Negative Gap = Expansionary (Heats economy)
         real_rate_gap = effective_rate - self.inflation
 
-        # 3. Apply Physics
-        # Change in Inflation
+        # A) Inflation
         inflation_delta = -(real_rate_gap * self.SENSITIVITY_INFLATION)
-        self.inflation += inflation_delta
+        inflation_gravity = (self.TARGET_INFLATION - self.inflation) * self.GRAVITY_INFLATION
+        self.inflation += (inflation_delta + inflation_gravity)
 
-        # Change in GDP
-        gdp_delta = -(real_rate_gap * self.SENSITIVITY_GDP)
-        self.gdp_growth += gdp_delta
+        # B) GDP
+        gdp_pressure = -(real_rate_gap * self.SENSITIVITY_GDP)
+        gdp_gravity = (self.TARGET_GDP_GROWTH - self.gdp_growth) * self.GRAVITY_GDP
+        self.gdp_growth += (gdp_pressure + gdp_gravity)
 
-        # Change in Unemployment (Inverse to GDP)
-        # Note: We use gdp_delta, assuming `gdp_growth` represents deviation from trend roughly
-        unemployment_delta = -(gdp_delta * self.SENSITIVITY_UNEMPLOYMENT)
-        self.unemployment += unemployment_delta
+        # C) Unemployment (Okun's Law)
+        gdp_gap = self.TARGET_GDP_GROWTH - self.gdp_growth
+        unemployment_delta = (gdp_gap * self.SENSITIVITY_UNEMPLOYMENT)
+        unemployment_gravity = (self.TARGET_UNEMPLOYMENT - self.unemployment) * self.GRAVITY_UNEMPLOYMENT
+        
+        self.unemployment += (unemployment_delta + unemployment_gravity)
 
-        # 4. Natural Decay / Stabilization (Mean Reversion)
-        # If left untouched, extreme GDP growth tends to return to 2.0%
-        # self.gdp_growth += (2.0 - self.gdp_growth) * 0.05 
-
-        # 5. Apply Limits (Clamping)
+        # D) Clamping
         self.inflation = max(self.MIN_INFLATION, min(self.MAX_INFLATION, self.inflation))
         self.unemployment = max(self.MIN_UNEMPLOYMENT, min(self.MAX_UNEMPLOYMENT, self.unemployment))
+        self.gdp_growth = max(self.MIN_GDP, min(self.MAX_GDP, self.gdp_growth))
 
-        # 6. Advance
         self.turn += 1
 
         return {
