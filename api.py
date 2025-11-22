@@ -26,6 +26,11 @@ class EventModel(BaseModel):
     type: str
     impact: Dict[str, float]
 
+class AdvisorModel(BaseModel):
+    name: str
+    msg: str
+    type: str
+
 class GameState(BaseModel):
     turn: int
     inflation: float
@@ -40,10 +45,11 @@ class GameState(BaseModel):
     money_supply_index: float = 100.0
     gov_type: str = "دولت"
     gov_desc: str = ""
-    
     is_game_over: bool = False
     game_over_reason: str = ""
     game_over_type: str = "none" 
+    # New
+    advisors: List[AdvisorModel] = []
 
 class ForecastPoint(BaseModel):
     turn: int
@@ -57,6 +63,9 @@ def read_root():
 
 @app.get("/state", response_model=GameState)
 def get_state():
+    # We need to generate advisor report for current state if not turn processing
+    advisors = game_instance._get_advisor_report(game_instance.policy_history[-1])
+    
     return {
         "turn": game_instance.turn,
         "inflation": round(game_instance.inflation, 2),
@@ -71,28 +80,24 @@ def get_state():
         "money_supply_index": round(game_instance.money_supply_index, 1),
         "gov_type": game_instance.gov.name,
         "gov_desc": game_instance.gov.profile["desc"],
-        
         "is_game_over": game_instance.political_tension >= 100 or game_instance.inflation >= 100 or game_instance.unemployment >= 30 or game_instance.turn > game_instance.MAX_TURNS,
         "game_over_reason": "", 
-        "game_over_type": "none"
+        "game_over_type": "none",
+        "advisors": advisors
     }
 
 @app.post("/next_turn", response_model=GameState)
 def next_turn(policy: PolicyInput):
     if not (-10.0 <= policy.interest_rate <= 100.0):
-        raise HTTPException(status_code=400, detail="Interest rate must be between -10 and 100")
-    
+        raise HTTPException(status_code=400, detail="Interest rate invalid")
     if not (-50.0 <= policy.money_printer <= 50.0):
-        raise HTTPException(status_code=400, detail="Money printer out of range")
+        raise HTTPException(status_code=400, detail="Money printer invalid")
 
     new_state = game_instance.next_turn(policy.interest_rate, policy.money_printer)
     return new_state
 
 @app.post("/forecast", response_model=List[ForecastPoint])
 def get_forecast(policy: PolicyInput):
-    """
-    Run a simulation for 6 months into the future
-    """
     forecast = game_instance.simulate_future(policy.interest_rate, policy.money_printer)
     return forecast
 

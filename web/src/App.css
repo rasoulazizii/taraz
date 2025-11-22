@@ -1,113 +1,38 @@
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700&display=swap');
 
-#root {
-  width: 100%;
-  min-height: 100vh;
-  background-color: #121212;
-  color: #e0e0e0;
-  font-family: 'Vazirmatn', sans-serif;
-}
-
+#root { width: 100%; min-height: 100vh; background-color: #121212; color: #e0e0e0; font-family: 'Vazirmatn', sans-serif; }
 .app-wrapper { padding: 2rem; }
 .container { max-width: 900px; margin: 0 auto; transition: filter 0.5s ease; }
+.blur-background { filter: blur(5px); pointer-events: none; user-select: none; }
 
-/* Blur effect */
-.blur-background {
-    filter: blur(5px);
-    pointer-events: none;
-    user-select: none;
-}
-
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  border-bottom: 2px solid #333;
-  padding-bottom: 1rem;
-}
-
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid #333; padding-bottom: 1rem; }
 h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
-
 .header-actions { display: flex; gap: 1rem; align-items: center; }
-
-.status-badge {
-  background: #333;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-size: 1.1rem;
-}
-
-.reset-btn {
-    background: #444;
-    color: #fff;
-    border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    font-size: 1.2rem;
-    cursor: pointer;
-    transition: 0.2s;
-}
+.status-badge { background: #333; padding: 0.5rem 1rem; border-radius: 8px; font-size: 1.1rem; }
+.reset-btn { background: #444; color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; transition: 0.2s; }
 .reset-btn:hover { background: #ff6b6b; }
 
-/* Gov Badge */
-.gov-badge {
-    background: #2c3e50;
-    color: #aec6cf;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    display: inline-block;
-    position: relative;
-    cursor: help;
-    border: 1px solid #34495e;
-}
-
-.gov-badge .tooltip {
-    visibility: hidden;
-    background-color: #222;
-    color: #eee;
-    text-align: center;
-    padding: 8px 12px;
-    border-radius: 6px;
-    position: absolute;
-    z-index: 10;
-    top: 120%;
-    right: 0;
-    width: 220px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    border: 1px solid #555;
-    font-size: 0.85rem;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
+.gov-badge { background: #2c3e50; color: #aec6cf; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem; display: inline-block; position: relative; cursor: help; border: 1px solid #34495e; }
+.gov-badge .tooltip { visibility: hidden; background-color: #222; color: #eee; text-align: center; padding: 8px 12px; border-radius: 6px; position: absolute; z-index: 10; top: 120%; right: 0; width: 220px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 1px solid #555; font-size: 0.85rem; opacity: 0; transition: opacity 0.2s; }
 .gov-badge:hover .tooltip { visibility: visible; opacity: 1; }
 
-/* Tension Bar */
-.tension-container {
-  background: #1f1f1f;
-  padding: 1rem;
-  border-radius: 12px;
-  border: 1px solid #444;
-  margin-bottom: 1.5rem;
-}
+.tension-container { background: #1f1f1f; padding: 1rem; border-radius: 12px; border: 1px solid #444; margin-bottom: 1.5rem; }
 .tension-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-weight: bold; color: #ddd; }
 .progress-bar-bg { width: 100%; height: 12px; background: #333; border-radius: 6px; overflow: hidden; margin-bottom: 0.8rem; }
 .progress-bar-fill { height: 100%; transition: width 0.5s ease, background-color 0.5s ease; }
 .gov-message { font-size: 0.9rem; color: #8cb4f5; background: rgba(140, 180, 245, 0.1); padding: 0.6rem; border-radius: 6px; border-right: 4px solid #8cb4f5; }
 
-/* News Feed */
-.news-feed {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 2rem;
-  max-height: 220px;
-  overflow-y: auto;
-}
+/* Advisors */
+.advisors-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.advisor-card { background: #1e1e1e; padding: 1rem; border-radius: 10px; border: 1px solid #333; display: flex; align-items: center; gap: 1rem; }
+.advisor-icon { font-size: 2rem; background: #333; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.advisor-content h5 { margin: 0; color: #aaa; font-size: 0.85rem; }
+.advisor-content p { margin: 0.3rem 0 0 0; font-size: 0.8rem; font-style: italic; color: #eee; }
+.advisor-card.hawk { border-left: 3px solid #ff6b6b; }
+.advisor-card.dove { border-left: 3px solid #51cf66; }
+.advisor-card.techno { border-left: 3px solid #888; }
+
+.news-feed { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 1rem; margin-bottom: 2rem; max-height: 220px; overflow-y: auto; }
 .news-feed h3 { margin-top: 0; font-size: 1rem; color: #888; border-bottom: 1px solid #333; padding-bottom: 0.5rem; margin-bottom: 0.8rem; }
 .news-list { display: flex; flex-direction: column; gap: 0.8rem; }
 .news-item { display: flex; align-items: flex-start; background: #252525; border-radius: 8px; overflow: hidden; animation: fadeIn 0.5s ease-out; }
@@ -121,7 +46,6 @@ h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
 .news-item.severe .news-turn { background: #8a0000; color: yellow; }
 .news-impact { margin-top: 0.5rem; font-size: 0.75rem; font-weight: bold; color: #ffd700; background: rgba(0,0,0,0.3); display: inline-block; padding: 2px 6px; border-radius: 4px; }
 
-/* Dashboard */
 .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
 .card { background: #252525; padding: 1.2rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: transform 0.2s; }
 .card:hover { transform: translateY(-2px); }
@@ -130,11 +54,9 @@ h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
 .value.red { color: #ff6b6b; } .value.green { color: #51cf66; } .value.orange { color: #fcc419; } .value.gold { color: #ffd700; } .value.small { font-size: 1.5rem; color: #ced4da; }
 .hint { font-size: 0.75rem; color: #666; margin-top: 5px; display: block; direction: ltr;}
 
-/* Chart */
 .chart-container { background: #1f1f1f; padding: 1rem; border-radius: 12px; margin-bottom: 2rem; border: 1px solid #333; }
 .chart-container h3 { text-align: right; margin-bottom: 1rem; color: #aaa; font-size: 0.9rem; }
 
-/* Controls */
 .controls-area { background: #222; padding: 1.5rem; border-radius: 12px; display: flex; flex-direction: column; gap: 1.5rem; border-top: 4px solid #646cff; }
 .control-group label { display: block; margin-bottom: 0.5rem; font-size: 1rem; }
 .printer-group { margin-top: 0.5rem; padding-top: 1rem; border-top: 1px dashed #444; }
@@ -148,7 +70,6 @@ h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
 .error-box { background: #3e1a1a; color: #ff8888; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #ff4444; }
 .loading { display: flex; justify-content: center; align-items: center; height: 100vh; font-size: 1.5rem; color: #aaa; }
 
-/* --- Modal Overlay --- */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; animation: fadeIn 0.5s ease; }
 .modal-content { background: #2c2c2c; padding: 2.5rem; border-radius: 16px; text-align: center; max-width: 400px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid #555; }
 .modal-content.win { border-color: #51cf66; background: linear-gradient(145deg, #1a2a1e, #2c2c2c); }
