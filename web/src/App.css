@@ -9,11 +9,11 @@
 }
 
 .app-wrapper { padding: 2rem; }
-.container { max-width: 900px; margin: 0 auto; transition: filter 0.3s; }
+.container { max-width: 900px; margin: 0 auto; transition: filter 0.5s ease; }
 
-/* Blur effect when game over */
+/* Blur effect */
 .blur-background {
-    filter: blur(8px);
+    filter: blur(5px);
     pointer-events: none;
     user-select: none;
 }
@@ -28,6 +28,7 @@ header {
 }
 
 h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
+
 .header-actions { display: flex; gap: 1rem; align-items: center; }
 
 .status-badge {
@@ -62,6 +63,7 @@ h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
     cursor: help;
     border: 1px solid #34495e;
 }
+
 .gov-badge .tooltip {
     visibility: hidden;
     background-color: #222;
@@ -80,17 +82,32 @@ h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
     opacity: 0;
     transition: opacity 0.2s;
 }
+
 .gov-badge:hover .tooltip { visibility: visible; opacity: 1; }
 
 /* Tension Bar */
-.tension-container { background: #1f1f1f; padding: 1rem; border-radius: 12px; border: 1px solid #444; margin-bottom: 1.5rem; }
+.tension-container {
+  background: #1f1f1f;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #444;
+  margin-bottom: 1.5rem;
+}
 .tension-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-weight: bold; color: #ddd; }
 .progress-bar-bg { width: 100%; height: 12px; background: #333; border-radius: 6px; overflow: hidden; margin-bottom: 0.8rem; }
 .progress-bar-fill { height: 100%; transition: width 0.5s ease, background-color 0.5s ease; }
 .gov-message { font-size: 0.9rem; color: #8cb4f5; background: rgba(140, 180, 245, 0.1); padding: 0.6rem; border-radius: 6px; border-right: 4px solid #8cb4f5; }
 
 /* News Feed */
-.news-feed { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 1rem; margin-bottom: 2rem; max-height: 220px; overflow-y: auto; }
+.news-feed {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
 .news-feed h3 { margin-top: 0; font-size: 1rem; color: #888; border-bottom: 1px solid #333; padding-bottom: 0.5rem; margin-bottom: 0.8rem; }
 .news-list { display: flex; flex-direction: column; gap: 0.8rem; }
 .news-item { display: flex; align-items: flex-start; background: #252525; border-radius: 8px; overflow: hidden; animation: fadeIn 0.5s ease-out; }
@@ -132,20 +149,12 @@ h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
 .loading { display: flex; justify-content: center; align-items: center; height: 100vh; font-size: 1.5rem; color: #aaa; }
 
 /* --- Modal Overlay --- */
-.modal-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 1000; animation: fadeIn 0.5s ease;
-}
-.modal-content {
-    background: #2c2c2c; padding: 2.5rem; border-radius: 16px; text-align: center;
-    max-width: 400px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid #555;
-}
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; animation: fadeIn 0.5s ease; }
+.modal-content { background: #2c2c2c; padding: 2.5rem; border-radius: 16px; text-align: center; max-width: 400px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid #555; }
 .modal-content.win { border-color: #51cf66; background: linear-gradient(145deg, #1a2a1e, #2c2c2c); }
 .modal-content.lose_pol { border-color: #ff6b6b; background: linear-gradient(145deg, #3a1515, #2c2c2c); }
 .modal-content.lose_eco { border-color: #fcc419; background: linear-gradient(145deg, #3a3015, #2c2c2c); }
-.modal-content h2 { margin-top: 0; font-size: 2rem; margin-bottom: 1rem; color: #fff; }
+.modal-content h2 { margin-top: 0; font-size: 2rem; margin-bottom: 1rem; }
 .game-over-reason { font-size: 1.1rem; color: #eee; margin-bottom: 2rem; line-height: 1.6; }
 .final-stats { display: flex; justify-content: space-around; margin-bottom: 2rem; font-weight: bold; color: #aaa; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; }
 .restart-btn { background-color: #fff; color: #333; border: none; padding: 1rem 2rem; font-size: 1.2rem; font-family: 'Vazirmatn', sans-serif; font-weight: bold; border-radius: 50px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }

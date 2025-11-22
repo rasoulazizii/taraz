@@ -41,10 +41,15 @@ class GameState(BaseModel):
     gov_type: str = "دولت"
     gov_desc: str = ""
     
-    # Game Over Fields
     is_game_over: bool = False
     game_over_reason: str = ""
     game_over_type: str = "none" 
+
+class ForecastPoint(BaseModel):
+    turn: int
+    inflation: float
+    gdp_growth: float
+    unemployment: float
 
 @app.get("/")
 def read_root():
@@ -67,7 +72,6 @@ def get_state():
         "gov_type": game_instance.gov.name,
         "gov_desc": game_instance.gov.profile["desc"],
         
-        # Check manually for state display
         "is_game_over": game_instance.political_tension >= 100 or game_instance.inflation >= 100 or game_instance.unemployment >= 30 or game_instance.turn > game_instance.MAX_TURNS,
         "game_over_reason": "", 
         "game_over_type": "none"
@@ -83,6 +87,14 @@ def next_turn(policy: PolicyInput):
 
     new_state = game_instance.next_turn(policy.interest_rate, policy.money_printer)
     return new_state
+
+@app.post("/forecast", response_model=List[ForecastPoint])
+def get_forecast(policy: PolicyInput):
+    """
+    Run a simulation for 6 months into the future
+    """
+    forecast = game_instance.simulate_future(policy.interest_rate, policy.money_printer)
+    return forecast
 
 @app.post("/reset")
 def reset_game():

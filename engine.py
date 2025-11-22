@@ -1,4 +1,5 @@
 import random
+import copy
 
 class Government:
     TYPES = {
@@ -33,13 +34,18 @@ class Government:
         }
     }
 
-    def __init__(self):
-        self.type_key = random.choice(list(self.TYPES.keys()))
+    def __init__(self, type_key=None):
+        # Allow manual setting for simulation cloning
+        if type_key and type_key in self.TYPES:
+            self.type_key = type_key
+        else:
+            self.type_key = random.choice(list(self.TYPES.keys()))
+            
         self.profile = self.TYPES[self.type_key]
         self.name = self.profile["name_fa"]
 
 class Economy:
-    # --- Constants (Final Balance) ---
+    # --- Constants ---
     TARGET_INFLATION = 3.0
     TARGET_GDP_GROWTH = 3.0
     TARGET_UNEMPLOYMENT = 5.0
@@ -67,8 +73,7 @@ class Economy:
     MIN_GDP = -15.0
     MAX_GDP = 15.0
     
-    # New: Game Duration
-    MAX_TURNS = 48 # 4 Years term
+    MAX_TURNS = 48
 
     def __init__(self):
         self.inflation = 15.0
@@ -150,9 +155,13 @@ class Economy:
         if self.political_tension > 85.0:
             self.gov_message = "‼️ اولتیماتوم: خطر برکناری!"
 
-    def next_turn(self, policy_interest_rate: float, money_printer: float = 0.0):
+    def next_turn(self, policy_interest_rate: float, money_printer: float = 0.0, is_simulation: bool = False):
+        """
+        is_simulation: If True, do not log history or process random events (deterministic mode)
+        """
         self.policy_history.append(policy_interest_rate)
-        self._log_history(policy_interest_rate)
+        if not is_simulation:
+            self._log_history(policy_interest_rate)
 
         effective_rate = self._calculate_effective_rate()
         self.money_supply_index += money_printer
@@ -195,8 +204,14 @@ class Economy:
         self.unemployment += (unemployment_delta + unemployment_gravity)
 
         # Events & Politics
-        self.active_events = self._process_random_events()
-        self._update_political_tension(policy_interest_rate)
+        # In simulation mode, we disable random events to show "pure" policy impact
+        if not is_simulation:
+            self.active_events = self._process_random_events()
+            self._update_political_tension(policy_interest_rate)
+        else:
+            self.active_events = [] # No random events in forecast
+            # We still estimate tension to show warning
+            self._update_political_tension(policy_interest_rate)
 
         # Clamping
         self.inflation = max(self.MIN_INFLATION, min(self.MAX_INFLATION, self.inflation))
@@ -204,30 +219,23 @@ class Economy:
         self.gdp_growth = max(self.MIN_GDP, min(self.MAX_GDP, self.gdp_growth))
         self.turn += 1
         
-        # --- Game Over Logic (New) ---
+        # Game Over Logic
         game_over = False
         game_over_reason = ""
-        game_over_type = "none" # win, lose_pol, lose_eco
+        game_over_type = "none"
 
-        # A) Political Defeat
         if self.political_tension >= 100.0:
             game_over = True
             game_over_type = "lose_pol"
             game_over_reason = f"شما برکنار شدید! {self.gov.name} دیگر تحمل سیاست‌های شما را نداشت."
-
-        # B) Economic Collapse
         elif self.inflation >= 100.0:
             game_over = True
             game_over_type = "lose_eco"
             game_over_reason = "فروپاشی اقتصادی! ابرتورم پول ملی را نابود کرد."
-        
-        # C) Social Collapse
         elif self.unemployment >= 30.0:
             game_over = True
             game_over_type = "lose_eco"
             game_over_reason = "شورش گرسنگان! بیکاری گسترده باعث سقوط نظم اجتماعی شد."
-
-        # D) Victory
         elif self.turn > self.MAX_TURNS:
             game_over = True
             game_over_type = "win"
@@ -247,8 +255,6 @@ class Economy:
             "money_supply_index": round(self.money_supply_index, 1),
             "gov_type": self.gov.name,
             "gov_desc": self.gov.profile["desc"],
-            
-            # Game Over Fields
             "is_game_over": game_over,
             "game_over_reason": game_over_reason,
             "game_over_type": game_over_type
@@ -263,3 +269,39 @@ class Economy:
             "rate": policy_rate,
             "fx": self.exchange_rate
         })
+
+    def simulate_future(self, policy_rate: float, money_printer: float, months: int = 6):
+        """
+        Creates a temporary clone of the economy and runs it forward
+        to predict trends without affecting the real game state.
+        """
+        # Create a lightweight copy manually (deepcopy can be problematic/slow with some objects)
+        sim_economy = Economy()
+        
+        # Copy State
+        sim_economy.inflation = self.inflation
+        sim_economy.gdp_growth = self.gdp_growth
+        sim_economy.unemployment = self.unemployment
+        sim_economy.exchange_rate = self.exchange_rate
+        sim_economy.fx_change_rate = self.fx_change_rate
+        sim_economy.money_supply_index = self.money_supply_index
+        sim_economy.turn = self.turn
+        sim_economy.policy_history = self.policy_history[:] # Copy list
+        sim_economy.political_tension = self.political_tension
+        
+        # Copy Gov
+        sim_economy.gov = Government(self.gov.type_key)
+        
+        forecast_data = []
+        
+        for _ in range(months):
+            # Run turn in simulation mode
+            state = sim_economy.next_turn(policy_rate, money_printer, is_simulation=True)
+            forecast_data.append({
+                "turn": state["turn"],
+                "inflation": state["inflation"],
+                "gdp_growth": state["gdp_growth"],
+                "unemployment": state["unemployment"]
+            })
+            
+        return forecast_data

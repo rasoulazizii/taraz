@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './App.css';
 
@@ -16,13 +16,27 @@ function App() {
   
   // Data for Visualization
   const [history, setHistory] = useState([]);
+  const [forecast, setForecast] = useState([]); // New: Predicted future data
   const [eventLog, setEventLog] = useState([]); 
 
   const API_URL = "http://127.0.0.1:8000";
 
+  // --- Initialization ---
   useEffect(() => {
     fetchInitialState();
   }, []);
+
+  // --- Forecast Debouncer ---
+  // When inputs change, wait 500ms then fetch forecast
+  useEffect(() => {
+    if (!gameState || gameState.is_game_over) return;
+
+    const timer = setTimeout(() => {
+        fetchForecast();
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [interestRate, moneyPrinter, gameState?.turn]); // Depend on inputs
 
   // --- API Interactions ---
 
@@ -34,7 +48,7 @@ function App() {
       
       setGameState(data);
       setInterestRate(data.effective_rate);
-      setMoneyPrinter(data.money_supply_index !== 100 ? 0.0 : 0.0); // Reset slider visual
+      setMoneyPrinter(0.0); 
       
       setHistory([data]);
       if (data.events && data.events.length > 0) {
@@ -45,6 +59,25 @@ function App() {
       setError("عدم اتصال به سرور. آیا فایل api.py اجرا شده است؟");
       console.error(err);
     }
+  };
+
+  const fetchForecast = async () => {
+      try {
+        const response = await fetch(`${API_URL}/forecast`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                interest_rate: parseFloat(interestRate),
+                money_printer: parseFloat(moneyPrinter)
+            }),
+        });
+        if (response.ok) {
+            const data = await response.json();
+            setForecast(data);
+        }
+      } catch (err) {
+          console.error("Forecast failed", err);
+      }
   };
 
   const handleNextTurn = async () => {
@@ -67,6 +100,9 @@ function App() {
       
       setHistory(prev => [...prev, newData]);
       addEventsToLog(newData.events, newData.turn);
+      
+      // Clear forecast temporarily until new one loads
+      setForecast([]);
 
     } catch (err) {
       setError("خطا در اعمال سیاست پولی.");
@@ -77,8 +113,7 @@ function App() {
   };
 
   const handleReset = async () => {
-      // If game is NOT over, ask for confirmation. If over, just reset.
-      if (!gameState?.is_game_over && !confirm("آیا مطمئن هستید؟ بازی کاملاً ریست شده و نوع دولت تغییر می‌کند.")) return;
+      if(!gameState.is_game_over && !confirm("آیا مطمئن هستید؟ بازی کاملاً ریست شده و نوع دولت تغییر می‌کند.")) return;
       
       setLoading(true);
       try {
@@ -86,6 +121,7 @@ function App() {
           setHistory([]);
           setEventLog([]);
           setMoneyPrinter(0.0);
+          setForecast([]);
           await fetchInitialState();
       } catch(err) {
           setError("خطا در ریست بازی");
@@ -94,7 +130,7 @@ function App() {
       }
   };
 
-  // --- Helpers ---
+  // --- Helpers & Data Prep ---
 
   const addEventsToLog = (newEvents, turn) => {
       if (!newEvents || newEvents.length === 0) return;
@@ -112,15 +148,54 @@ function App() {
     return '#ff6b6b'; 
   };
 
+  // Combine History and Forecast for Charting
+  const combinedData = useMemo(() => {
+      if (history.length === 0) return [];
+      
+      // 1. Standard History Data
+      const data = history.map(h => ({
+          ...h,
+          // Projections are null for history points (except the last one to connect lines)
+          inflation_proj: null,
+          gdp_proj: null,
+          unemp_proj: null
+      }));
+
+      // 2. Anchor Point (The bridge between solid and dashed lines)
+      // We need the last history point to also be the start of the projection line
+      const lastPoint = data[data.length - 1];
+      if (lastPoint) {
+          lastPoint.inflation_proj = lastPoint.inflation;
+          lastPoint.gdp_proj = lastPoint.gdp_growth;
+          lastPoint.unemp_proj = lastPoint.unemployment;
+      }
+
+      // 3. Forecast Data
+      const projData = forecast.map(f => ({
+          turn: f.turn,
+          // Main lines are null
+          inflation: null,
+          gdp_growth: null,
+          unemployment: null,
+          // Projection lines have data
+          inflation_proj: f.inflation,
+          gdp_proj: f.gdp_growth,
+          unemp_proj: f.unemployment
+      }));
+
+      return [...data, ...projData];
+  }, [history, forecast]);
+
+
   // --- Render ---
 
   if (!gameState) return <div className="loading">در حال اتصال به سامانه تراز...</div>;
-  
+
   const isGameOver = gameState.is_game_over;
 
   return (
     <div className="app-wrapper" dir="rtl">
-      {/* Container blurs when game is over */}
+      
       <div className={`container ${isGameOver ? 'blur-background' : ''}`}>
         <header>
           <div className="header-info">
@@ -133,7 +208,7 @@ function App() {
           
           <div className="header-actions">
               <div className="status-badge">
-                 ماه: <strong>{gameState.turn}</strong> / 48
+                 ماه: <strong>{gameState.turn}</strong>
               </div>
               <button onClick={handleReset} className="reset-btn" title="بازی جدید">
                  ⟳
@@ -220,19 +295,27 @@ function App() {
           </div>
         </div>
 
-        {/* 4. Charts */}
+        {/* 4. Charts (With Forecasts) */}
         <div className="chart-container" dir="ltr"> 
-          <h3>روند شاخص‌های کلان</h3>
+          <h3>روند شاخص‌های کلان (خط‌چین: پیش‌بینی ۶ ماه آینده)</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={history}>
+            <LineChart data={combinedData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis dataKey="turn" stroke="#888" />
               <YAxis stroke="#888" />
               <Tooltip contentStyle={{ backgroundColor: '#333', border: '1px solid #555' }} />
               <Legend />
+              
+              {/* History Lines (Solid) */}
               <Line type="monotone" dataKey="inflation" name="تورم" stroke="#ff6b6b" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="gdp_growth" name="رشد GDP" stroke="#51cf66" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="unemployment" name="بیکاری" stroke="#fcc419" strokeWidth={2} dot={false} />
+
+              {/* Forecast Lines (Dashed, Opacity) */}
+              <Line type="monotone" dataKey="inflation_proj" name="پیش‌بینی تورم" stroke="#ff6b6b" strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={false} strokeOpacity={0.6} />
+              <Line type="monotone" dataKey="gdp_proj" name="پیش‌بینی رشد" stroke="#51cf66" strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={false} strokeOpacity={0.6} />
+              <Line type="monotone" dataKey="unemp_proj" name="پیش‌بینی بیکاری" stroke="#fcc419" strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={false} strokeOpacity={0.6} />
+
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -278,7 +361,7 @@ function App() {
 
           <button 
             onClick={handleNextTurn} 
-            disabled={loading}
+            disabled={loading || isGameOver}
             className="action-btn"
           >
             {loading ? "در حال محاسبه..." : "اعمال سیاست‌ها و ماه بعد"}
@@ -298,7 +381,6 @@ function App() {
             <div className="final-stats">
                 <div>تورم نهایی: {gameState.inflation}%</div>
                 <div>رشد نهایی: {gameState.gdp_growth}%</div>
-                <div>بیکاری: {gameState.unemployment}%</div>
             </div>
 
             <button onClick={handleReset} className="restart-btn">
