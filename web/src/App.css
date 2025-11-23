@@ -1,6 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap');
 
-#root { width: 100%; min-height: 100vh; background-color: #121212; color: #e0e0e0; font-family: 'Vazirmatn', sans-serif; }
+#root {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #121212;
+  color: #e0e0e0;
+  /* Default font will be set by dir attribute via CSS later if needed, for now Vazir handles both ok-ish */
+  font-family: 'Vazirmatn', 'Inter', sans-serif; 
+}
+
 .app-wrapper { padding: 2rem; }
 .container { max-width: 900px; margin: 0 auto; transition: filter 0.5s ease; }
 .blur-background { filter: blur(5px); pointer-events: none; user-select: none; }
@@ -9,8 +18,12 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
 .header-actions { display: flex; gap: 1rem; align-items: center; }
 .status-badge { background: #333; padding: 0.5rem 1rem; border-radius: 8px; font-size: 1.1rem; }
+
 .reset-btn { background: #444; color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; transition: 0.2s; }
 .reset-btn:hover { background: #ff6b6b; }
+
+.lang-btn { background: transparent; border: 1px solid #666; color: #aaa; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+.lang-btn:hover { color: #fff; border-color: #fff; }
 
 .gov-badge { background: #2c3e50; color: #aec6cf; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem; display: inline-block; position: relative; cursor: help; border: 1px solid #34495e; }
 .gov-badge .tooltip { visibility: hidden; background-color: #222; color: #eee; text-align: center; padding: 8px 12px; border-radius: 6px; position: absolute; z-index: 10; top: 120%; right: 0; width: 220px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 1px solid #555; font-size: 0.85rem; opacity: 0; transition: opacity 0.2s; }
@@ -22,7 +35,6 @@ h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
 .progress-bar-fill { height: 100%; transition: width 0.5s ease, background-color 0.5s ease; }
 .gov-message { font-size: 0.9rem; color: #8cb4f5; background: rgba(140, 180, 245, 0.1); padding: 0.6rem; border-radius: 6px; border-right: 4px solid #8cb4f5; }
 
-/* Advisors */
 .advisors-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .advisor-card { background: #1e1e1e; padding: 1rem; border-radius: 10px; border: 1px solid #333; display: flex; align-items: center; gap: 1rem; }
 .advisor-icon { font-size: 2rem; background: #333; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
@@ -56,6 +68,8 @@ h1 { font-size: 1.6rem; margin: 0 0 0.5rem 0; color: #fff; }
 
 .chart-container { background: #1f1f1f; padding: 1rem; border-radius: 12px; margin-bottom: 2rem; border: 1px solid #333; }
 .chart-container h3 { text-align: right; margin-bottom: 1rem; color: #aaa; font-size: 0.9rem; }
+/* In LTR mode, align chart title to left */
+[dir="ltr"] .chart-container h3 { text-align: left; }
 
 .controls-area { background: #222; padding: 1.5rem; border-radius: 12px; display: flex; flex-direction: column; gap: 1.5rem; border-top: 4px solid #646cff; }
 .control-group label { display: block; margin-bottom: 0.5rem; font-size: 1rem; }
