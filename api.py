@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from engine import Economy
-from typing import List, Dict
+from typing import List, Dict, Any, Union
 
 app = FastAPI(title="Taraz API", version="0.1.0")
 
@@ -19,6 +19,7 @@ game_instance = Economy()
 class PolicyInput(BaseModel):
     interest_rate: float
     money_printer: float = 0.0
+    lang: str = "en" # Input language for POST
 
 class EventModel(BaseModel):
     title: str
@@ -43,7 +44,7 @@ class GameState(BaseModel):
     exchange_rate: float = 50000.0
     fx_change: float = 0.0
     money_supply_index: float = 100.0
-    gov_type: str = "دولت"
+    gov_type: str = "Government"
     gov_desc: str = ""
     is_game_over: bool = False
     game_over_reason: str = ""
@@ -56,39 +57,44 @@ class ForecastPoint(BaseModel):
     gdp_growth: float
     unemployment: float
 
+# --- Localization Helper ---
+def localize(data: Any, lang: str) -> Any:
+    """Recursively translate dicts with 'en'/'fa' keys to strings"""
+    if isinstance(data, dict):
+        # If it's a translation dict (has 'en' and 'fa'), pick one
+        if "en" in data and "fa" in data and len(data) == 2:
+            return data.get(lang, data["en"])
+        # Otherwise, traverse deeper
+        return {k: localize(v, lang) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [localize(i, lang) for i in data]
+    else:
+        return data
+
 @app.get("/")
 def read_root():
     return {"status": "online", "game": "Taraz Simulator"}
 
 @app.get("/state", response_model=GameState)
-def get_state():
-    advisors = game_instance._get_advisor_report(game_instance.policy_history[-1])
+def get_state(lang: str = Query("en", regex="^(en|fa)$")):
+    # Get Raw State (with dicts)
+    raw_state = game_instance.next_turn(game_instance.policy_history[-1], 0, is_simulation=True)
     
-    # --- FIX: Use persisted game over status ---
-    go_status = game_instance.game_over_status
+    # Re-inject persisted advisors (simulation above might reset them)
+    raw_state["advisors"] = game_instance._get_advisor_report(game_instance.policy_history[-1])
     
-    return {
-        "turn": game_instance.turn,
-        "inflation": round(game_instance.inflation, 2),
-        "gdp_growth": round(game_instance.gdp_growth, 2),
-        "unemployment": round(game_instance.unemployment, 2),
-        "effective_rate": round(game_instance._calculate_effective_rate(), 2),
-        "events": game_instance.active_events,
-        "political_tension": round(game_instance.political_tension, 1),
-        "gov_message": game_instance.gov_message,
-        "exchange_rate": round(game_instance.exchange_rate, 0),
-        "fx_change": round(game_instance.fx_change_rate, 2),
-        "money_supply_index": round(game_instance.money_supply_index, 1),
-        "gov_type": game_instance.gov.name,
-        "gov_desc": game_instance.gov.profile["desc"],
-        
-        # Correctly mapped fields
-        "is_game_over": go_status["is_game_over"],
-        "game_over_reason": go_status["reason"],
-        "game_over_type": go_status["type"],
-        
-        "advisors": advisors
-    }
+    # Re-inject persisted game over logic
+    go = game_instance.game_over_status
+    raw_state["is_game_over"] = go["is_game_over"]
+    raw_state["game_over_reason"] = go["reason"]
+    raw_state["game_over_type"] = go["type"]
+    
+    # Re-inject events (simulation clears them, we want last turn's events)
+    raw_state["events"] = game_instance.active_events
+
+    # Localize
+    localized_state = localize(raw_state, lang)
+    return localized_state
 
 @app.post("/next_turn", response_model=GameState)
 def next_turn(policy: PolicyInput):
@@ -97,8 +103,11 @@ def next_turn(policy: PolicyInput):
     if not (-50.0 <= policy.money_printer <= 50.0):
         raise HTTPException(status_code=400, detail="Money printer invalid")
 
-    new_state = game_instance.next_turn(policy.interest_rate, policy.money_printer)
-    return new_state
+    raw_state = game_instance.next_turn(policy.interest_rate, policy.money_printer)
+    
+    # Localize
+    localized_state = localize(raw_state, policy.lang)
+    return localized_state
 
 @app.post("/forecast", response_model=List[ForecastPoint])
 def get_forecast(policy: PolicyInput):
