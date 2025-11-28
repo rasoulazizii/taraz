@@ -4,23 +4,23 @@ import copy
 class Government:
     TYPES = {
         "Populist": {
-            "names": {"en": "Populist Gov", "fa": "دولت پوپولیست"},
-            "descs": {"en": "High spending, high inflation bias. Hates unemployment.", "fa": "تمرکز بر خرج کردن. تورم‌زا. حساس به بیکاری."},
+            "name_fa": "دولت پوپولیست (خرج‌کننده)",
+            "desc": "تمرکز بر محبوبیت. تورم‌زا. حساسیت شدید به بیکاری.",
             "budget_bias": 1.5, "inflation_bias": 1.0, "tension_speed": 1.5
         },
         "Austerity": {
-            "names": {"en": "Austerity Gov", "fa": "دولت ریاضتی"},
-            "descs": {"en": "Focus on debt reduction. Anti-inflation but recessionary.", "fa": "تمرکز بر کاهش بدهی. ضدتورم ولی رکودزا."},
+            "name_fa": "دولت ریاضتی (انضباط مالی)",
+            "desc": "تمرکز بر کاهش بدهی. ضدتورم ولی رکودزا.",
             "budget_bias": -0.5, "inflation_bias": -0.5, "tension_speed": 0.8
         },
         "Liberal": {
-            "names": {"en": "Liberal Gov", "fa": "دولت لیبرال"},
-            "descs": {"en": "Laissez-faire. Sensitive to FX and investment.", "fa": "بازار آزاد. حساسیت شدید به نرخ ارز و سرمایه‌گذاری."},
-            "budget_bias": 0.2, "inflation_bias": 0.0, "tension_speed": 1.0, "fx_sensitivity": 2.0
+            "name_fa": "دولت لیبرال (بازار آزاد)",
+            "desc": "دخالت کم. حساسیت شدید به نرخ ارز و سرمایه‌گذاری.",
+            "budget_bias": 0.2, "inflation_bias": 0.0, "tension_speed": 1.0, "fx_sensitivity": 4.0 # Increased from 2.0
         },
         "Welfare": {
-            "names": {"en": "Welfare Gov", "fa": "دولت رفاه"},
-            "descs": {"en": "Balanced approach. High support for employment.", "fa": "تعادل بین رشد و ثبات. حمایت از اشتغال."},
+            "name_fa": "دولت رفاه (میانه)",
+            "desc": "تعادل بین رشد و ثبات. حمایت از اشتغال.",
             "budget_bias": 0.5, "inflation_bias": 0.2, "tension_speed": 1.0
         }
     }
@@ -31,36 +31,39 @@ class Government:
         else:
             self.type_key = random.choice(list(self.TYPES.keys()))
         self.profile = self.TYPES[self.type_key]
-        # We store the whole dict now, API handles selection
-        self.name = self.profile["names"] 
+        self.name = self.profile["name_fa"]
 
 class Economy:
-    # --- Constants ---
+    # --- Tuning Constants ---
     TARGET_INFLATION = 3.0
     TARGET_GDP_GROWTH = 3.0
     TARGET_UNEMPLOYMENT = 5.0
 
-    SENSITIVITY_INFLATION = 0.03
+    SENSITIVITY_INFLATION = 0.025
     SENSITIVITY_GDP = 0.04
     SENSITIVITY_UNEMPLOYMENT = 0.25 
+    
     GLOBAL_INTEREST_RATE = 2.0
     SENSITIVITY_FX = 0.1          
     PASS_THROUGH_COEF = 0.2       
+    
     SENSITIVITY_MONEY_INFLATION = 0.15
     SENSITIVITY_MONEY_GDP = 0.15
     SENSITIVITY_MONEY_FX = 0.2
+
+    # Gravity (Mean Reversion) - Tweaked
     GRAVITY_GDP = 0.3
-    GRAVITY_INFLATION = 0.05
+    GRAVITY_INFLATION = 0.02 # Reduced from 0.05 to make inflation stickier
     GRAVITY_UNEMPLOYMENT = 0.05
-    
+
     MIN_INFLATION, MAX_INFLATION = -10.0, 200.0
     MIN_UNEMPLOYMENT, MAX_UNEMPLOYMENT = 2.0, 50.0
     MIN_GDP, MAX_GDP = -15.0, 15.0
     MAX_TURNS = 48
 
-    def __init__(self):
-        self.inflation = 15.0
-        self.gdp_growth = 2.0
+    def __init__(self, fixed_gov_type=None, initial_inflation=15.0, initial_gdp=2.0):
+        self.inflation = initial_inflation
+        self.gdp_growth = initial_gdp
         self.unemployment = 10.0
         self.exchange_rate = 50000.0
         self.fx_change_rate = 0.0
@@ -73,9 +76,9 @@ class Economy:
         self.active_events = []
         
         self.political_tension = 0.0
-        self.gov_message = {"en": "Government is monitoring.", "fa": "دولت وضعیت را رصد می‌کند."}
+        self.gov_message = "دولت وضعیت را رصد می‌کند."
         
-        self.gov = Government()
+        self.gov = Government(fixed_gov_type)
         
         self.game_over_status = {
             "is_game_over": False,
@@ -91,85 +94,68 @@ class Economy:
     def _process_random_events(self):
         triggered = []
         if random.random() < 0.05:
-            triggered.append({
-                "title": {"en": "Oil Shock", "fa": "شوک نفتی"},
-                "desc": {"en": "Global oil prices surged.", "fa": "قیمت جهانی نفت افزایش یافت."},
-                "type": "negative", "impact": {"inflation": 4.0, "gdp": -2.0}
-            })
+            triggered.append({"title": {"en": "Oil Shock", "fa": "شوک نفتی"}, "desc": {"en": "Global oil prices surged.", "fa": "قیمت جهانی نفت افزایش یافت."}, "type": "negative", "impact": {"inflation": 4.0, "gdp": -2.0}})
             self.inflation += 4.0
             self.gdp_growth -= 2.0
         elif random.random() < 0.05:
-            triggered.append({
-                "title": {"en": "Tech Boom", "fa": "جهش فناوری"},
-                "desc": {"en": "Productivity increased.", "fa": "بهره‌وری افزایش یافت."},
-                "type": "positive", "impact": {"inflation": -1.0, "gdp": 3.0}
-            })
+            triggered.append({"title": {"en": "Tech Boom", "fa": "جهش فناوری"}, "desc": {"en": "Productivity increased.", "fa": "بهره‌وری افزایش یافت."}, "type": "positive", "impact": {"inflation": -1.0, "gdp": 3.0}})
             self.inflation -= 1.0
             self.gdp_growth += 3.0
         if self.inflation > 20.0 and random.random() < 0.20:
-             triggered.append({
-                "title": {"en": "Labor Strike", "fa": "اعتصاب کارگران"},
-                "desc": {"en": "Protests against high inflation.", "fa": "اعتراض به گرانی."},
-                "type": "severe", "impact": {"gdp": -3.0, "unemployment": 2.0}
-            })
+             triggered.append({"title": {"en": "Labor Strike", "fa": "اعتصاب کارگران"}, "desc": {"en": "Protests against high inflation.", "fa": "اعتراض به گرانی."}, "type": "severe", "impact": {"gdp": -3.0, "unemployment": 2.0}})
              self.gdp_growth -= 3.0
              self.unemployment += 2.0
         return triggered
 
     def _update_political_tension(self, policy_rate):
         tension_change = 0.0
-        self.gov_message = {"en": "Government is silent.", "fa": "دولت فعلاً سکوت کرده است."}
+        self.gov_message = {"en": "Silent", "fa": "سکوت"}
+        
         speed_mod = self.gov.profile["tension_speed"]
         fx_sens_mod = self.gov.profile.get("fx_sensitivity", 1.0)
 
+        # 1. Rate Friction
         if policy_rate > 15.0:
             diff = policy_rate - 15.0
             tension_change += (diff * 0.4)
-            if diff > 10: self.gov_message = {"en": "Warning: Interest rate is too high!", "fa": "هشدار: نرخ بهره بسیار بالاست!"}
-        
+            if diff > 10: self.gov_message = {"en": "Rate High!", "fa": "بهره بالاست!"}
+
+        # 2. Unemployment Friction
         if self.unemployment > 10.0:
             diff = self.unemployment - 10.0
             tension_change += (diff * 0.8)
-            if diff > 5: self.gov_message = {"en": "Warning: Unemployment is critical.", "fa": "هشدار: بیکاری بحرانی است."}
+            if diff > 5: self.gov_message = {"en": "Unemployment High!", "fa": "بیکاری بالاست!"}
 
-        if self.fx_change_rate > 5.0:
-             tension_change += (3.0 * fx_sens_mod)
-             self.gov_message = {"en": "Warning: Currency crashing!", "fa": "هشدار: سقوط ارزش پول ملی!"}
+        # 3. FX Friction (Amplified by Gov Type)
+        if self.fx_change_rate > 3.0: # Lowered threshold from 5.0 to 3.0
+             base_impact = (self.fx_change_rate - 3.0) * 2.0 
+             tension_change += (base_impact * fx_sens_mod)
+             self.gov_message = {"en": "FX Crisis!", "fa": "بحران ارزی!"}
 
+        # 4. Relief
         if policy_rate <= 15.0 and self.unemployment <= 10.0 and self.fx_change_rate < 3.0:
             tension_change -= 3.0
-            self.gov_message = {"en": "Government is satisfied.", "fa": "دولت رضایت دارد."}
+            self.gov_message = {"en": "Happy", "fa": "راضی"}
 
+        # Apply speed mod
         self.political_tension += (tension_change * speed_mod)
         self.political_tension = max(0.0, min(100.0, self.political_tension))
-        
-        if self.political_tension > 85.0:
-            self.gov_message = {"en": "‼️ Ultimatum: Risk of firing!", "fa": "‼️ اولتیماتوم: خطر برکناری!"}
 
     def _get_advisor_report(self, policy_rate):
         advisors = []
-        # Hawk
-        hawk_msg = {"en": "Status is optimal.", "fa": "وضعیت مطلوب است."}
-        if self.inflation > 5.0: hawk_msg = {"en": "Inflation is high! Raise rates.", "fa": "تورم بالاست! نرخ بهره را افزایش دهید."}
-        if self.inflation > 15.0: hawk_msg = {"en": "Inflation crisis! Hike rates now.", "fa": "فاجعه تورمی! سیاست انقباضی شدید لازم است."}
-        if policy_rate < self.inflation: 
-            hawk_msg = {"en": hawk_msg["en"] + " Real rate is negative!", "fa": hawk_msg["fa"] + " نرخ بهره واقعی منفی است!"}
+        hawk_msg = {"en": "Status optimal.", "fa": "وضعیت مطلوب."}
+        if self.inflation > 5.0: hawk_msg = {"en": "Inflation high! Raise rates.", "fa": "تورم بالاست! افزایش نرخ."}
+        if self.inflation > 15.0: hawk_msg = {"en": "Inflation crisis!", "fa": "بحران تورم!"}
         advisors.append({"name": {"en": "The Hawk", "fa": "شاهین"}, "msg": hawk_msg, "type": "hawk"})
 
-        # Dove
-        dove_msg = {"en": "Labor market is calm.", "fa": "بازار کار آرام است."}
-        if self.unemployment > 8.0: dove_msg = {"en": "People need jobs! Inject money.", "fa": "مردم بیکارند! کمی پول تزریق کنید."}
-        if self.unemployment > 15.0: dove_msg = {"en": "Unemployment crisis! Cut rates.", "fa": "بحران بیکاری! نرخ بهره را کاهش دهید."}
-        if self.gdp_growth < 0: 
-            dove_msg = {"en": dove_msg["en"] + " We are in recession!", "fa": dove_msg["fa"] + " در رکود هستیم!"}
+        dove_msg = {"en": "Labor calm.", "fa": "بازار کار آرام."}
+        if self.unemployment > 8.0: dove_msg = {"en": "Inject money.", "fa": "تزریق پول."}
+        if self.unemployment > 15.0: dove_msg = {"en": "Crisis! Cut rates.", "fa": "بحران بیکاری!"}
         advisors.append({"name": {"en": "The Dove", "fa": "کبوتر"}, "msg": dove_msg, "type": "dove"})
 
-        # Technocrat
-        tech_msg = {"en": "Indices are balanced.", "fa": "شاخص‌ها متعادلند."}
-        if abs(self.fx_change_rate) > 3.0: tech_msg = {"en": "FX volatility is high.", "fa": "نوسان ارزی شدید است."}
-        if self.political_tension > 60.0: tech_msg = {"en": "High political risk.", "fa": "ریسک سیاسی بالاست."}
-        advisors.append({"name": {"en": "The Technocrat", "fa": "تکنوکرات"}, "msg": tech_msg, "type": "techno"})
-        
+        tech_msg = {"en": "Balanced.", "fa": "متعادل."}
+        if abs(self.fx_change_rate) > 3.0: tech_msg = {"en": "FX Volatility.", "fa": "نوسان ارزی."}
+        advisors.append({"name": {"en": "Technocrat", "fa": "تکنوکرات"}, "msg": tech_msg, "type": "techno"})
         return advisors
 
     def next_turn(self, policy_interest_rate: float, money_printer: float = 0.0, is_simulation: bool = False):
@@ -179,6 +165,7 @@ class Economy:
         effective_rate = self._calculate_effective_rate()
         self.money_supply_index += money_printer
         
+        # FX Logic
         rate_differential = effective_rate - self.GLOBAL_INTEREST_RATE
         natural_depreciation = (self.inflation - 2.0) * 0.05
         capital_flow_effect = rate_differential * self.SENSITIVITY_FX
@@ -187,12 +174,14 @@ class Economy:
         self.exchange_rate = self.exchange_rate * (1 + (self.fx_change_rate / 100.0))
         self.exchange_rate = max(1000.0, self.exchange_rate)
 
+        # Core Physics
         real_rate_gap = effective_rate - self.inflation
         gov_inflation = self.gov.profile["inflation_bias"]
         inflation_delta = -(real_rate_gap * self.SENSITIVITY_INFLATION)
         import_inflation = self.fx_change_rate * self.PASS_THROUGH_COEF
         monetary_inflation = money_printer * self.SENSITIVITY_MONEY_INFLATION
         inflation_gravity = (self.TARGET_INFLATION - self.inflation) * self.GRAVITY_INFLATION
+        
         self.inflation += (inflation_delta + import_inflation + monetary_inflation + inflation_gravity + gov_inflation)
 
         gov_spending = self.gov.profile["budget_bias"]
@@ -200,6 +189,7 @@ class Economy:
         export_boost = self.fx_change_rate * 0.03
         monetary_stimulus = money_printer * self.SENSITIVITY_MONEY_GDP
         gdp_gravity = (self.TARGET_GDP_GROWTH - self.gdp_growth) * self.GRAVITY_GDP
+        
         self.gdp_growth += (gdp_pressure + export_boost + monetary_stimulus + gdp_gravity + gov_spending)
 
         gdp_gap = self.TARGET_GDP_GROWTH - self.gdp_growth
@@ -222,37 +212,30 @@ class Economy:
         # Game Over Logic
         if not self.game_over_status["is_game_over"]:
             if self.political_tension >= 100.0:
-                self.game_over_status = {"is_game_over": True, "type": "lose_pol", 
-                                         "reason": {"en": f"You are fired! {self.gov.profile['names']['en']} lost patience.", "fa": f"شما برکنار شدید! {self.gov.profile['names']['fa']} دیگر تحمل سیاست‌های شما را نداشت."}}
+                self.game_over_status = {"is_game_over": True, "type": "lose_pol", "reason": {"en": "Fired", "fa": "اخراج"}}
             elif self.inflation >= 100.0:
-                self.game_over_status = {"is_game_over": True, "type": "lose_eco", 
-                                         "reason": {"en": "Economic Collapse! Hyperinflation destroyed the currency.", "fa": "فروپاشی اقتصادی! ابرتورم پول ملی را نابود کرد."}}
+                self.game_over_status = {"is_game_over": True, "type": "lose_eco", "reason": {"en": "Collapse", "fa": "فروپاشی"}}
             elif self.unemployment >= 30.0:
-                self.game_over_status = {"is_game_over": True, "type": "lose_eco", 
-                                         "reason": {"en": "Social Collapse! Mass unemployment caused riots.", "fa": "شورش گرسنگان! بیکاری گسترده باعث سقوط نظم اجتماعی شد."}}
+                self.game_over_status = {"is_game_over": True, "type": "lose_eco", "reason": {"en": "Riots", "fa": "شورش"}}
             elif self.turn > self.MAX_TURNS:
-                self.game_over_status = {"is_game_over": True, "type": "win", 
-                                         "reason": {"en": "Victory! You survived the 4-year term successfully.", "fa": "تبریک! دوره ریاست ۴ ساله شما با موفقیت به پایان رسید."}}
+                self.game_over_status = {"is_game_over": True, "type": "win", "reason": {"en": "Victory", "fa": "پیروزی"}}
 
-        # We return raw dicts here, API will filter
         return {
             "turn": self.turn,
             "inflation": round(self.inflation, 2),
             "gdp_growth": round(self.gdp_growth, 2),
             "unemployment": round(self.unemployment, 2),
             "effective_rate": round(effective_rate, 2),
-            "events": self.active_events, # Contains dicts
             "political_tension": round(self.political_tension, 1),
-            "gov_message": self.gov_message, # Dict
             "exchange_rate": round(self.exchange_rate, 0),
             "fx_change": round(self.fx_change_rate, 2),
             "money_supply_index": round(self.money_supply_index, 1),
-            "gov_type": self.gov.profile["names"], # Dict
-            "gov_desc": self.gov.profile["descs"], # Dict
+            "gov_type": self.gov.name,
+            "gov_desc": self.gov.profile["desc"],
             "is_game_over": self.game_over_status["is_game_over"],
-            "game_over_reason": self.game_over_status["reason"], # Dict
+            "game_over_reason": self.game_over_status["reason"],
             "game_over_type": self.game_over_status["type"],
-            "advisors": self._get_advisor_report(policy_interest_rate) # Contains dicts
+            "advisors": self._get_advisor_report(policy_interest_rate)
         }
 
     def _log_history(self, policy_rate):
@@ -266,7 +249,7 @@ class Economy:
         })
 
     def simulate_future(self, policy_rate: float, money_printer: float, months: int = 6):
-        sim_economy = Economy()
+        sim_economy = Economy(fixed_gov_type=self.gov.type_key)
         sim_economy.inflation = self.inflation
         sim_economy.gdp_growth = self.gdp_growth
         sim_economy.unemployment = self.unemployment
@@ -276,7 +259,6 @@ class Economy:
         sim_economy.turn = self.turn
         sim_economy.policy_history = self.policy_history[:]
         sim_economy.political_tension = self.political_tension
-        sim_economy.gov = Government(self.gov.type_key)
         
         forecast_data = []
         for _ in range(months):
